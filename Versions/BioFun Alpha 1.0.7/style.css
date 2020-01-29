@@ -1,0 +1,99 @@
+#container {
+	width: 640px;
+	height: 480px;
+	display: inline-block;
+	margin: 0 auto;
+	background: #5555FF;
+	position: relative;
+	border: 2px solid black;
+	border-radius: 10px;
+	box-shadow: 0 5px 50px #333;
+}
+#canvas1 {
+	z-index: 1;
+	position: relative;
+}
+#mainMenu {
+	z-index: 2;
+	position: relative;
+}
+#playMenu {
+	z-index: 2;
+	position: relative;
+}
+#searchMenu {
+	z-index: 2;
+	position: relative;
+}
+#readyMenu {
+	z-index: 2;
+	position: relative;
+}
+#controls {
+	z-index: 2;
+	position: relative;
+}
+#submit {
+	bottom: 200px;
+	left: 280px;
+	width: 80px;
+	height: 30px;
+	position: absolute;
+}
+#textBox {
+	bottom: 240px;
+	left: 240px;
+	width: 160px;
+	text-align: center;
+	position: absolute;
+}
+#online {
+	bottom: 280px;
+	left: 260px;
+	width: 120px;
+	height: 30px;
+	position: absolute;
+}
+#direct {
+	bottom: 240px;
+	left: 260px;
+	width: 120px;
+	height: 30px;
+	position: absolute;
+}
+#multiplayer {
+	bottom: 200px;
+	left: 260px;
+	width: 120px;
+	height: 30px;
+	position: absolute;
+}
+#ready {
+	bottom: 240px;
+	left: 260px;
+	width: 120px;
+	height: 30px;
+	position: absolute;
+}
+#rage {
+	bottom: 440px;
+	left: 290px;
+	width: 120px;
+	height: 30px;
+	position: absolute;
+}
+#back {
+	bottom: 440px;
+	left: 10px;
+	width: 120px;
+	height: 30px;
+	position: absolute;
+}
+#finish {
+	bottom: 40px;
+	left: 260px;
+	width: 120px;
+	height: 30px;
+	z-index: 2;
+	position: relative;
+}

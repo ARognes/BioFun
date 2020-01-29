@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>BioFun</title>
+		<h2>BioFun</h2>
+	</head>
+	<body>	
+		<script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+		<script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+		<link rel="stylesheet" type="text/css" href="style.css">
+		<div id='container'>
+			<canvas id='canvas1' height='480px' width='640px'> Your browser does not support the HTML5 canvas tag</canvas>
+			<div id='mainMenu'>
+				<input type='submit' id='submit' onclick='submit ()' value='Play'/>
+				<input type='text' id='textBox' onkeypress='if (event.keyCode == 13) submit ()' placeholder='Nickname'/>
+			</div>
+			<div id='playMenu' display='none'>
+				<input type='button' id='online' onclick='stage = -1' value='Online'/>
+				<input type='button' id='direct' onclick='direct ()' value='Direct'/>
+				<input type='button' id='multiplayer' onclick='multiplayer ()' value='2-Player'/>
+			</div>
+			<div id='levelMenu' display='none'>
+				<input type='button' id='level0' onclick='findRoom (0)' value='Start'/>
+				<input type='button' id='level1' onclick='findRoom (1)' value='Level 1'/>
+			</div>
+			<div id='searchMenu' display='none'>
+				<input type='button' id='back' onclick='back ()' value='Back'>
+			</div>
+			<div id='readyMenu' display='none'>
+				<input type='button' id='ready' onclick='ready ()' value='Ready'>
+			</div>
+			<div id='controls' display='none'>
+				<input type='button' id='rage' onclick='submitRage ()' value='Rage'>
+			</div>
+			<input type='button' id='finish' onclick='stage = 1' value='Finish'>
+		</div>
+		<script>
+		
+//IMAGES
+var select = document.createElement ("img");
+select.src = "Selected.png";
+var point = document.createElement ("img");
+point.src = "Point.png";
+var check = document.createElement ("img");
+check.src = "Check.png";
+
+var playerOffence = document.createElement ("img");
+playerOffence.src = "Player Offence.png";
+var playerDefence = document.createElement ("img");
+playerDefence.src = "Player Structure.png";
+var playerBank = document.createElement ("img");
+playerBank.src = "Player Bank.png";
+var enemyOffence = document.createElement ("img");
+enemyOffence.src = "Enemy Offence.png";
+var enemyDefence = document.createElement ("img");
+enemyDefence.src = "Enemy Structure.png";
+var enemyBank = document.createElement ("img");
+enemyBank.src = "Enemy Bank.png";
+
+var happy = document.createElement ("img");
+happy.src = "Happy.png";
+var happy2 = document.createElement ("img");
+happy2.src = "Happy 2.png";
+var sad = document.createElement ("img");
+sad.src = "Sad.png";
+var sad2 = document.createElement ("img");
+sad2.src = "Sad 2.png";
+var angerHappy = document.createElement ("img");
+angerHappy.src = "Anger Happy.png";
+var angerHappy2 = document.createElement ("img");
+angerHappy2.src = "Anger Happy 2.png";
+var angerSad = document.createElement ("img");
+angerSad.src = "Anger Sad.png";
+var angerSad2 = document.createElement ("img");
+angerSad2.src = "Anger Sad 2.png";
+	
+var c = document.getElementById ("canvas1");
+var ctx = c.getContext ("2d");
+//var server = io.connect ('http://192.168.1.116:8080/');
+var server = io.connect ('http://localhost:3000/');
+//Moms '192.168.1.116'
+//Dads '70.58.137.160'
+var particles = [];
+var size = 20;
+var mouseX = 0;
+var mouseY = 0;
+var mouseDown = 0;
+var mouse;
+var time;
+var tile = [];
+var tileAnimate = [];
+var points = 0;
+var nickname;
+var enemyNickname;
+var team;
+var room;
+var stage = 0;
+var startTile;
+var totSize;
+var rage;
+var face = 0;
+var upgrade = 0;
+var enemyFace = 0;
+var sizeGraph = [];
+var enemySizeGraph = [];
+var level = 0;
+var record = false;
+var lastTime = Date.now (),
+    timeSincePoint = 0;
+	
+//MOUSE
+document.onmousemove = function (mouse) {
+	mouseX = mouse.clientX-container.offsetLeft+window.pageXOffset;
+	mouseY = mouse.clientY-container.offsetTop+window.pageYOffset;
+	var xVel;
+	var yVel;
+}
+
+document.onmousedown = function () {
+	mouseDown = 2;
+}
+
+document.onmouseup = function () {
+  mouseDown = 0;
+}
+	
+//MAIN MENU
+function submit () {
+	stage = 1;
+	nickname = document.getElementById ('textBox').value;
+	if (!nickname) nickname = 'Rebel';
+	server.emit ('new user', nickname);
+}
+
+/*function online () {
+	if ();
+}*/
+
+function findRoom (lev) {
+	level = lev;
+	server.emit ('findRoom', nickname, lev)
+}
+
+function direct () {
+
+}
+
+function multiplayer () {
+
+}
+
+//SEARCH MENU
+function back () {
+	server.emit ('back', room);
+}
+
+//CONTROLS
+function submitRage () {
+	if (rage >= 16) server.emit ('rage', room, team);
+}
+
+//PRESSED THE READY BUTTON
+function ready () {
+	if (stage == 3) {
+		if (startTile > -1) server.emit ('ready', room, team, startTile);
+	}
+}
+//RECEIVED POINTS AND TILES
+server.on ('tiles', function (updatedTiles, pointsTeam, newPoints, newRage, terrainPoint) {
+	if (pointsTeam == team) {
+		if (Math.round (newPoints-0.5) > Math.round (points-0.5) && terrainPoint == false) timeSincePoint = 0;
+		points = newPoints;
+		rage = newRage;
+	}
+	//CALCULATE OPEN TILES
+	var playerX = [];
+	var enemyX = [];
+	var before = tile;
+	tile = updatedTiles;
+	for (lu=0; lu<tile.length; lu++) {if (tile [lu] == 1 || tile [lu] == -1) tile [lu] = 0;}
+	for (l=0; l<tile.length; l++) {
+		//LEFT RIGHT
+		var lr = 0;
+		for (left=0; left<400; left+= 20) {if (l == left) lr = 1;}
+		for (right=-1; right<=399; right+= 20) {if (l == right) lr = 2;}
+		if (team == 0) {
+			if (tile [l] < -1 && tile [l] > -11) {
+				if (tile [l-1] == 0 && lr != 1) enemyX.push (l-1);
+				if (tile [l+1] == 0 && lr != 2) enemyX.push (l+1);
+				if (tile [l-20] == 0) enemyX.push (l-20);
+				if (tile [l+20] == 0) enemyX.push (l+20);
+				if (tile [l] < -3) {
+					if (tile [l-19] == 0 && lr != 2) enemyX.push (l-19);
+					if (tile [l+19] == 0 && lr != 1) enemyX.push (l+19);
+					if (tile [l-21] == 0 && lr != 1) enemyX.push (l-21);
+					if (tile [l+21] == 0 && lr != 2) enemyX.push (l+21);
+				}
+			}
+			/*if (before [l] <= -3 && tile [l] == 0) tileAnimate [l] = 0.00324;
+			if (before [l] <= -6 && tile [l] == -2) tileAnimate [l] = 0.00325;
+			if (before [l] <= -9 && tile [l] == -3) tileAnimate [l] = 0.00326;
+			if (before [l] == -13 && tile [l] == 0) tileAnimate [l] = 0.00327;
+			
+			if (before [l] >= 2 && tile [l] == 0) tileAnimate [l] = 0.00314;
+			if (before [l] >= 6 && tile [l] == 2) tileAnimate [l] = 0.00315;
+			if (before [l] >= 9 && tile [l] == 3) tileAnimate [l] = 0.00316;
+			if (before [l] == 13 && tile [l] == 0) tileAnimate [l] = 0.00317;*/
+		}
+		else if (team == 1) {
+			if (tile [l] > 1 && tile [l] < 11) {
+				if (tile [l-1] == 0 && lr != 1) playerX.push (l-1);
+				if (tile [l+1] == 0 && lr != 2) playerX.push (l+1);
+				if (tile [l-20] == 0) playerX.push (l-20);
+				if (tile [l+20] == 0) playerX.push (l+20);
+				if (tile [l] > 3) {
+					if (tile [l-19] == 0 && lr != 2) playerX.push (l-19);
+					if (tile [l+19] == 0 && lr != 1) playerX.push (l+19);
+					if (tile [l-21] == 0 && lr != 1) playerX.push (l-21);
+					if (tile [l+21] == 0 && lr != 2) playerX.push (l+21);
+				}
+			}
+			/*if (before [l] <= -3 && tile [l] == 0) tileAnimate [l] = 0.00314;
+			if (before [l] <= -6 && tile [l] == -2) tileAnimate [l] = 0.00315;
+			if (before [l] <= -9 && tile [l] == -3) tileAnimate [l] = 0.00316;
+			if (before [l] == -13 && tile [l] == 0) tileAnimate [l] = 0.00317;
+			
+			if (before [l] >= 2 && tile [l] == 0) tileAnimate [l] = 0.00324;
+			if (before [l] >= 6 && tile [l] == 2) tileAnimate [l] = 0.00325;
+			if (before [l] >= 9 && tile [l] == 3) tileAnimate [l] = 0.00326;
+			if (before [l] == 13 && tile [l] == 0) tileAnimate [l] = 0.00327;*/
+		}
+	}
+	for (li=0; li<playerX.length; li++) {
+		if (before [playerX [li]] == -1) tileAnimate [playerX [li]] = 0;
+		tile [playerX [li]] = 1;
+	}
+	for (lo=0; lo<enemyX.length; lo++) {
+		if (before [enemyX [lo]] == 1) tileAnimate [enemyX [lo]] = 0;
+		tile [enemyX [lo]] = -1;
+	}
+});
+//RECEIVED POINTS
+server.on ('points', function (p1, p2) {
+	if (team == 0) {
+		if (Math.round (points-0.5) < Math.round (p1-0.5)) timeSincePoint = 0;
+		points = p1;
+	}
+	else if (team == 1) {
+		if (Math.round (points-0.5) < Math.round (p2-0.5)) timeSincePoint = 0;
+		points = p2;
+	}
+});
+//RECEIVED EMOJI
+server.on ('emoji', function (face1, face2) {
+	if (team == 0) {
+		face = face1;
+		enemyFace = face2;
+	}
+	else {
+		face = face2;
+		enemyFace = face1;
+	}
+});
+//RECORD
+server.on ('record', function () {
+	record = true;
+});
+//PRESSED THE ONLINE BUTTON AND GOT A ROOM
+server.on ('joinRoom', function (newRoom, newTeam) {
+	room = newRoom;
+	team = newTeam;
+	timeSincePoint = 1.0;
+	rage = 0;
+	points = 16;
+	stage = 2;
+	//RESET VARIABLES
+	startTile = -1;
+	sizeGraph = [];
+	enemySizeGraph = [];
+});
+//ROOM IS FULL
+server.on ('roomReady', function (selectTiles, name1, name2) {
+	stage = 3;
+	tile = selectTiles;
+	for (la=0; la<tile.length; la++) {
+		if (team == 0 && tile [la] == 1) tile [la] = 0;
+		else if (team == 1 && tile [la] == -1)  tile [la] = 0;
+	}
+	if (team == 0) enemyNickname = name2;
+	else enemyNickname = name1;
+});
+//ENSURE READY MESSAGE WENT THROUGH
+server.on ('readied', function () {
+	if (stage == 3) stage = 4;
+});
+//START GAME
+server.on ('start', function () {
+	stage = 5;
+});
+//GAME OVER
+server.on ('gameOver', function (winner) {
+	if (winner == 5) {
+		if (team == 0) stage = 6;
+		else stage = 7;
+	}
+	if (winner == 6) {
+		if (team == 1) stage = 6;
+		else stage = 7;
+	}
+	//ROOM RECYCLED
+	if (winner == 0) stage = 0;
+	//RE-SEARCH FOR ROOM
+	if (winner == 1) server.emit ('findRoom', nickname);
+});
+
+function updateTiles () {
+	var pSize = 0;
+	var enemySize = 0;
+	var canvasSquare = 20;
+	var push = [120, 70];
+	var tileNum = -1;
+	if (stage >= 3) {
+		for (var y = 0; y < size; y++) {
+			for (var x = 0; x < size; x++) {
+				tileNum++;
+				if (tileAnimate [tileNum] == 0.00314) addParticle (3, '#000', x*20+130, y*20+80);
+					if (tileAnimate [tileNum] >= 0.00314 && tileAnimate [tileNum] <= 0.00327) {
+					if (tileAnimate [tileNum] == 0.00315) addParticle (4, '#000', x*20+130, y*20+80);
+					if (tileAnimate [tileNum] == 0.00316) addParticle (5, '#000', x*20+130, y*20+80);
+					if (tileAnimate [tileNum] == 0.00317) addParticle (12, '#000', x*20+130, y*20+80);
+					
+					if (tileAnimate [tileNum] == 0.00324) addParticle (3, '#0f0', x*20+130, y*20+80);
+					if (tileAnimate [tileNum] == 0.00325) addParticle (4, '#0f0', x*20+130, y*20+80);
+					if (tileAnimate [tileNum] == 0.00326) addParticle (5, '#0f0', x*20+130, y*20+80);
+					if (tileAnimate [tileNum] == 0.00327) addParticle (12, '#0f0', x*20+130, y*20+80);
+					tileAnimate [tileNum] = 0;
+				}
+				//MOUSE
+				var inBox = false;
+				if (mouseX < x*20+140 && mouseX >= x*20+120 && mouseY < y*20+90 && mouseY >= y*20+70) {
+					inBox = true;
+					if (stage >= 3) ctx.drawImage (select, x*20+120, y*20+70, 20, 20);
+				}
+				//RENDER
+				//if (tile [tileNum] == 0) ctx.drawImage (empty, x*20+120, y*20+70, 20, 20);
+				if (tile [tileNum] != 0) {
+					var sz = tileAnimate [tileNum];
+					var xCenter = x*20+130-sz/2;
+					var yCenter = y*20+80-sz/2;
+					if (tile [tileNum] == 20) ctx.drawImage (point, xCenter, yCenter, sz, sz);
+					else if (tile [tileNum] == 21) ctx.drawImage (point, xCenter, yCenter, sz, sz);
+					else if (tile [tileNum] == 22) ctx.drawImage (point, xCenter, yCenter, sz, sz);
+					else {
+						if (team == 0) {
+							if (tile [tileNum] < 0) {	//DRAW PLAYER
+								if (tile [tileNum] < -2) pSize++;
+								if (tile [tileNum] == -1) ctx.drawImage (check, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] <= -3 && tile [tileNum] >= -6) ctx.drawImage (playerDefence, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] <= -7 && tile [tileNum] >= -9) ctx.drawImage (playerOffence, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] == -10) ctx.drawImage (playerBank, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] <= -11) ctx.drawImage (playerBank, xCenter, yCenter, sz, sz);
+							}
+							if (tile [tileNum] > 2 && tile [tileNum] < 20) {	//DRAW ENEMY
+								enemySize++;
+								if (tile [tileNum] >= 3 && tile [tileNum] <= 6) ctx.drawImage (enemyDefence, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] >= 7 && tile [tileNum] <= 9) ctx.drawImage (enemyOffence, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] == 10) ctx.drawImage (enemyBank, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] >= 11) ctx.drawImage (enemyBank, xCenter, yCenter, sz, sz);
+							}
+						}
+						else if (team == 1) {
+							if (tile [tileNum] > 0 && tile [tileNum] < 20) {	//DRAW PLAYER
+								if (tile [tileNum] != 1) pSize++;
+								if (tile [tileNum] == 1) ctx.drawImage (check, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] >= 3 && tile [tileNum] <= 6) ctx.drawImage (playerDefence, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] >= 7 && tile [tileNum] <= 9) ctx.drawImage (playerOffence, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] == 10) ctx.drawImage (playerBank, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] >= 11) ctx.drawImage (playerBank, xCenter, yCenter, sz, sz);
+							}
+							else if (tile [tileNum] < -2) {		//DRAW ENEMY
+								enemySize++;
+								if (tile [tileNum] <= -3 && tile [tileNum] >= -6) ctx.drawImage (enemyDefence, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] <= -7 && tile [tileNum] >= -9) ctx.drawImage (enemyOffence, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] == -10) ctx.drawImage (enemyBank, xCenter, yCenter, sz, sz);
+								else if (tile [tileNum] <= -11) ctx.drawImage (enemyBank, xCenter, yCenter, sz, sz);
+							}
+						}
+					}
+					if (mouseDown == 2 && inBox) {
+						//LEFT RIGHT
+						var lr2 = 0;
+						for (left2=0; left2<400; left2 += 20) {if (tileNum == left2) lr2 = 1;}
+						for (right2=-1; right2<=399; right2 += 20) {if (tileNum == right2) lr2 = 2;}
+						var touching = 0;
+						if (team == 0) {
+							if (tile [tileNum] < 0) {
+								server.emit ('select', tileNum, room, team, upgrade);
+								if (stage == 3) startTile = tileNum;
+							}
+							else if (tile [tileNum] >= 20) {
+								if (tile [tileNum-1] < -2 && tile [tileNum-1] >= -13 && lr2 != 1) touching++;
+								if (tile [tileNum+1] < -2 && tile [tileNum+1] >= -13 && lr2 != 2) touching++;
+								if (tile [tileNum-20] < -2 && tile [tileNum-20] >= -13) touching++;
+								if (tile [tileNum+20] < -2 && tile [tileNum+20] >= -13) touching++;
+								if (tile [tileNum-19] < -3 && tile [tileNum-19] >= -13 && lr2 != 2) touching++;
+								if (tile [tileNum+19] < -3 && tile [tileNum+19] >= -13 && lr2 != 1) touching++;
+								if (tile [tileNum-21] < -3 && tile [tileNum-21] >= -13 && lr2 != 1) touching++;
+								if (tile [tileNum+21] < -3 && tile [tileNum+21] >= -13 && lr2 != 2) touching++;
+								if (touching > 0) server.emit ('select', tileNum, room, team);
+							}
+							else if (tile [tileNum] > 0 && tile [tileNum] < 20) {
+								touching = -1;
+								if (tile [tileNum-1] < -6 && tile [tileNum-1] >= -9 && lr2 != 1) touching = tileNum-1;
+								if (tile [tileNum+1] < -6 && tile [tileNum+1] >= -9 && lr2 != 2) touching = tileNum+1;
+								if (tile [tileNum-20] < -6 && tile [tileNum-20] >= -9) touching = tileNum-20;
+								if (tile [tileNum+20] < -6 && tile [tileNum+20] >= -9) touching = tileNum+20;
+								if (tile [tileNum-19] < -6 && tile [tileNum-19] >= -9 && lr2 != 2) touching = tileNum-19;
+								if (tile [tileNum+19] < -6 && tile [tileNum+19] >= -9 && lr2 != 1) touching = tileNum+19;
+								if (tile [tileNum-21] < -6 && tile [tileNum-21] >= -9 && lr2 != 1) touching = tileNum-21;
+								if (tile [tileNum+21] < -6 && tile [tileNum+21] >= -9 && lr2 != 2) touching = tileNum+21;
+								if (touching > -1) server.emit ('select', tileNum, room, team, 0, touching);
+							}
+						}
+						else if (team == 1) {
+							if (tile [tileNum] > 0 && tile [tileNum] < 20) {
+								server.emit ('select', tileNum, room, team, upgrade);
+								if (stage == 3) startTile = tileNum;
+							}
+							else if (tile [tileNum] >= 20) {
+								if (tile [tileNum-1] > 2 && tile [tileNum-1] <= 13 && lr2 != 1) touching++;
+								if (tile [tileNum+1] > 2 && tile [tileNum+1] <= 13 && lr2 != 2) touching++;
+								if (tile [tileNum-20] > 2 && tile [tileNum-20] <= 13) touching++;
+								if (tile [tileNum+20] > 2 && tile [tileNum+20] <= 13) touching++;
+								if (tile [tileNum-19] > 3 && tile [tileNum-19] <= 13 && lr2 != 2) touching++;
+								if (tile [tileNum+19] > 3 && tile [tileNum+19] <= 13 && lr2 != 1) touching++;
+								if (tile [tileNum-21] > 3 && tile [tileNum-21] <= 13 && lr2 != 1) touching++;
+								if (tile [tileNum+21] > 3 && tile [tileNum+21] <= 13 && lr2 != 2) touching++;
+								if (touching > 0) server.emit ('select', tileNum, room, team);
+							}
+							else if (tile [tileNum] < 0) {
+								touching = -1;
+								if (tile [tileNum-1] > 6 && tile [tileNum-1] <= 9 && lr2 != 1) touching = tileNum-1;
+								if (tile [tileNum+1] > 6 && tile [tileNum+1] <= 9 && lr2 != 2) touching = tileNum+1;
+								if (tile [tileNum-20] > 6 && tile [tileNum-20] <= 9) touching = tileNum-20;
+								if (tile [tileNum+20] > 6 && tile [tileNum+20] <= 9) touching = tileNum+20;
+								if (tile [tileNum-19] > 6 && tile [tileNum-19] <= 9 && lr2 != 2) touching = tileNum-19;
+								if (tile [tileNum+19] > 6 && tile [tileNum+19] <= 9 && lr2 != 1) touching = tileNum+19;
+								if (tile [tileNum-21] > 6 && tile [tileNum-21] <= 9 && lr2 != 1) touching = tileNum-21;
+								if (tile [tileNum+21] > 6 && tile [tileNum+21] <= 9 && lr2 != 2) touching = tileNum+21;
+								if (touching > -1) server.emit ('select', tileNum, room, team, 0, touching);
+							}
+						}
+						//POINT PARTICLES
+						if (touching > 0) {
+							if (tile [tileNum] == 20) addParticle (3, '#ff0', x*20+130, y*20+80);
+							if (tile [tileNum] == 21) addParticle (5, '#ff0', x*20+130, y*20+80);
+							if (tile [tileNum] == 22) addParticle (8, '#ff0', x*20+130, y*20+80);
+						}
+					}
+					//START TILE
+					if (stage == 3 && startTile > -1 || stage == 4 && startTile > -1) {
+						if (tileNum == startTile) ctx.drawImage (select, x*20+120, y*20+70, 20, 20);
+					}
+					
+					//ANIMATION GHANGE
+					if (tileAnimate.length < 400) tileAnimate.push (0);
+					var abt = Math.abs (tile [tileNum]);
+					if (abt == 1 || abt == 2) resize (0.1, tileNum, 8);
+					else if (abt != 0 && abt < 20) {
+						if (abt == 3) resize (0.1, tileNum, 8);
+						else if (abt == 4 || abt == 7 || abt == 11) resize (0.1, tileNum, 12);
+						else if (abt == 5 || abt == 8 || abt == 12) resize (0.1, tileNum, 15);
+						else if (abt == 6 || abt == 9 || abt == 13) resize (0.1, tileNum, 18);
+						else if (abt == 10) resize (0.1, tileNum, 20);
+					}
+					else if (tile [tileNum] >= 20 && (tile [tileNum]-19)*4+4 != tileAnimate [tileNum]) resize (1, tileNum, (tile [tileNum]-19)*4+4);
+				}
+			}
+		}
+		if (record && stage < 6 && stage > 2) {
+			sizeGraph.push (pSize);
+			enemySizeGraph.push (enemySize);
+			record = false;
+		}
+		else if (stage > 6 && !record) {
+			sizeGraph.push (pSize);
+			enemySizeGraph.push (enemySize);
+			record = true;
+		}
+	}
+	//SEARCHING IMAGE
+	if (stage == 2) ctx.drawImage (select, 280, 200, 80, 80);
+	totSize = pSize;
+}
+
+function rand (min, max) {
+	if (max) return Math.random ()*(max - min) + min;
+	else return Math.random ()*min;
+}
+//GROW ANIMATION
+function resize (speed, tileNum, lerp) {
+	if (tileAnimate [tileNum] < lerp) tileAnimate [tileNum] += speed*(time)/2;
+	if (tileAnimate [tileNum] > lerp) tileAnimate [tileNum] = lerp;
+}
+
+function addParticle (num, color, x, y) {
+	var xVel;
+	var yVel;
+	if (!num) num = 3;
+	for (a=0; a<num; a++) {
+		xVel = Math.random ()*0.6+0.3;
+		if (Math.random () > 0.5) xVel = -xVel;
+		yVel = Math.random ()*0.6+0.3;
+		if (Math.random () > 0.5) yVel = -yVel;
+		if (num >= 3) particles.push ({'type': 0, 'color': color, 'x': x, 'y': y, 'xVel': xVel, 'yVel': yVel, 'size': Math.random ()*2+2});
+		if (num >= 5) particles.push ({'type': 0, 'color': color, 'x': x, 'y': y, 'xVel': xVel, 'yVel': yVel, 'size': Math.random ()*2+2.5});
+		if (num >= 8) particles.push ({'type': 0, 'color': color, 'x': x, 'y': y, 'xVel': xVel, 'yVel': yVel, 'size': Math.random ()*3+3});
+	}
+}
+//PARTICLE SYSTEM
+function particleSystem () {
+	for (p=0; p<particles.length; p++) {
+		if (particles [p].type == 0) {
+			particles [p].x += particles [p].xVel/10*time;
+			particles [p].y += particles [p].yVel/10*time;
+			if (particles [p].xVel > 0) particles [p].xVel -= time/1000;
+			else particles [p].xVel += time/1000;
+			if (particles [p].yVel > 0) particles [p].yVel -= time/1000;
+			else particles [p].yVel += time/1000
+			//GRAVITY
+			particles [p].yVel += 2*(time/1000);
+			if (Math.abs (particles [p].xVel) < 2) particles [p].size -= time/100;
+			if (particles [p].size > 0.5) {
+				ctx.strokeStyle = particles [p].color;
+				ctx.fillStyle = particles [p].color;
+				ctx.beginPath ();
+				ctx.arc (particles [p].x+particles [p].size/2, particles [p].y+particles [p].size/2, particles [p].size, 0, 2*Math.PI);
+				ctx.fill ();
+				ctx.stroke ();
+				particles.push ({'type': 1, 'color': particles [p].color, 'x': particles [p].x, 'y': particles [p].y, 'xVel': 0, 'yVel': 0, 'size': particles [p].size});
+			}
+			else particles [p].size = 0;
+		}
+		else if (particles [p].type == 1) {
+			particles [p].size -= time*0.0165;
+			if (particles [p].size > 2) {
+				ctx.strokeStyle = particles [p].color;
+				ctx.fillStyle = particles [p].color;
+				ctx.beginPath ();
+				ctx.arc (particles [p].x+particles [p].size/2, particles [p].y+particles [p].size/2, particles [p].size, 0, 2*Math.PI);
+				ctx.fill ();
+				ctx.stroke ();
+			}
+			else particles [p].size = 0;
+		}
+	}
+	//DESTROY
+	for (p2=0; p2<particles.length; p2++) {if (particles [p2].size <= 0) particles.splice (p2, 1);}
+}
+
+function update () {
+	ctx.clearRect (0, 0, canvas1.width, canvas1.height);
+	//TIME
+	var now = Date.now ();
+	time = now - lastTime;
+	lastTime = now;
+	//FPS
+	ctx.font = '10px Arial';
+	ctx.fillStyle = 'black';
+	ctx.fillText ('fps: '+Math.floor (60/time), 20, 40);
+	//SHOW MENUS
+	if (stage == 0) document.getElementById ('mainMenu').style.display = 'block';
+	else document.getElementById ('mainMenu').style.display = 'none';
+	if (stage == 1) document.getElementById ('playMenu').style.display = 'block';
+	else document.getElementById ('playMenu').style.display = 'none';
+	if (stage == -1) document.getElementById ('levelMenu').style.display = 'block';
+	else document.getElementById ('levelMenu').style.display = 'none';
+	if (stage == 2 || stage == 4) document.getElementById ('searchMenu').style.display = 'block';
+	else document.getElementById ('searchMenu').style.display = 'none';
+	if (stage == 3) document.getElementById ('readyMenu').style.display = 'block';
+	else document.getElementById ('readyMenu').style.display = 'none';
+	if (stage < 6 && stage > 2) document.getElementById ('controls').style.display = 'block';
+	else document.getElementById ('controls').style.display = 'none';
+	if (stage > 7 && stage < 10) document.getElementById ('finish').style.display = 'block';
+	else document.getElementById ('finish').style.display = 'none';
+	//DRAW UNDERNEATH TILES
+	if (stage < 6) ctx.fillStyle = '#000000';
+	else if (stage == 6) ctx.fillStyle = 'green';
+	else if (stage == 7) ctx.fillStyle = 'red';
+	ctx.fillRect (110, 60, 420, 420);
+	ctx.fillStyle = '#7777FF';
+	ctx.fillRect (120, 70, 400, 400);
+	updateTiles ();
+	particleSystem ();
+	ctx.font = '50px Arial';
+	ctx.fillStyle = 'red';
+	ctx.textAlign = 'center';
+	//POINTS SCOREBOARD
+	if (stage < 6 && stage > 2) {
+		var displayPoints = Math.round (points-0.5);
+		if (displayPoints < 0) displayPoints = 0;
+		ctx.fillText (displayPoints, 160, 48);
+		
+		//POINT BAR
+		ctx.fillStyle = '#9dd1bb';
+		ctx.fillRect (220, 34, 300, 14);
+		ctx.fillStyle = '#005215';
+		timeSincePoint += time/2000+totSize/12000;
+		if (timeSincePoint > 1.0) timeSincePoint = 1;
+		ctx.fillRect (220, 34, timeSincePoint*300, 14);
+		//RAGE BAR
+		ctx.fillStyle = '#9dd1bb';
+		ctx.fillRect (220, 10, 300, 14);
+		ctx.fillStyle = '#005215';
+		if (rage > 16.0) rage = 16;
+		if (rage == 16) document.getElementById ('rage').style.display = 'block';
+		else document.getElementById ('rage').style.display = 'none';
+		ctx.fillRect (220, 10, (rage/16)*300, 14);
+		
+		//UPGRADE BAR
+		if (upgrade == 0) ctx.drawImage (playerDefence, 560, 155, 70, 70);
+		else ctx.drawImage (playerDefence, 565, 160, 60, 60);
+		if (upgrade == 1) ctx.drawImage (playerOffence, 560, 220, 70, 70);
+		else ctx.drawImage (playerOffence, 565, 225, 60, 60);
+		if (upgrade == 2) ctx.drawImage (playerBank, 560, 285, 70, 70);
+		else ctx.drawImage (playerBank, 565, 290, 60, 60);
+		//UPGRADE BUTTONS
+		if (mouseDown == 2 && mouseY >= 160 && mouseY <= 350 && stage > 2 && stage < 6) {
+			var choose = Math.round ((mouseY-180)/45);
+			if (mouseX >= 565 && mouseX <= 630) {
+				if (mouseY >= 160 && mouseY <= 220) upgrade = 0;
+				else if (mouseY >= 225 && mouseY <= 285) upgrade = 1;
+				else if (mouseY >= 290 && mouseY <= 350) upgrade = 2;
+			}
+		}
+		
+		//MY FACE
+		if (face == 0) ctx.drawImage (happy, 15, 70, 80, 80);
+		if (face == 1) ctx.drawImage (happy2, 15, 70, 80, 80);
+		if (face == 2) ctx.drawImage (sad, 15, 70, 80, 80);
+		if (face == 3) ctx.drawImage (sad2, 15, 70, 80, 80);
+		if (face == 4) ctx.drawImage (angerHappy, 15, 70, 80, 80);
+		if (face == 5) ctx.drawImage (angerHappy2, 15, 70, 80, 80);
+		if (face == 6) ctx.drawImage (angerSad, 15, 70, 80, 80);
+		if (face == 7) ctx.drawImage (angerSad2, 15, 70, 80, 80);
+		//FACE BUTTONS
+		ctx.drawImage (happy, 10, 160, 40, 40);
+		ctx.drawImage (happy2, 10, 205, 40, 40);
+		ctx.drawImage (sad, 10, 250, 40, 40);
+		ctx.drawImage (sad2, 10, 295, 40, 40);
+		ctx.drawImage (angerHappy, 60, 160, 40, 40);
+		ctx.drawImage (angerHappy2, 60, 205, 40, 40);
+		ctx.drawImage (angerSad, 60, 250, 40, 40);
+		ctx.drawImage (angerSad2, 60, 295, 40, 40);
+		//FACE BUTTONS
+		if (mouseDown == 2 && mouseY >= 160 && mouseY <= 325 && stage > 2 && stage < 6) {
+			var choose = Math.round ((mouseY-180)/45);
+			if (mouseX >= 10 && mouseX <= 50) server.emit ('emoji', room, team, choose);
+			else if (mouseX >= 60 && mouseX <= 100) server.emit ('emoji', room, team, choose+4);
+		}
+	}
+	else if (stage == 6 || stage == 7) {
+		ctx.drawImage (sad2, 545, 70, 80, 80);
+		ctx.fillText ('Press space to continue', 320, 240);
+		onkeydown = function (key) {if (key.keyCode == 32) stage += 2;}
+	}
+	else if (stage > 7) {
+		ctx.fillStyle = '#9dd1bb';
+		ctx.fillRect (120, 70, 400, 400);
+		ctx.fillStyle = '60px Comic Sans';
+		ctx.fillStyle = '#000';
+		if (stage == 8) ctx.fillText ('You Win!', 320, 110);
+		if (stage == 9) ctx.fillText ('You Lose!', 320, 110);
+		//DRAW GRAPH
+		ctx.lineWidth = 4;
+		ctx.lineCap = 'round';
+		ctx.strokeStyle = 'red';
+		var pMax = Math.max.apply (Math, sizeGraph);
+		var enemyMax = Math.max.apply (Math, enemySizeGraph);
+		max = Math.max (pMax, enemyMax);
+		for (p2=0; p2<enemySizeGraph.length; p2++) {
+			if (p2 == 1) {
+				ctx.beginPath ();
+				ctx.moveTo (120, 400);
+				ctx.lineTo (120+(p2*400)/(enemySizeGraph.length-1), 400-(enemySizeGraph [p2]*200/max));
+			}
+			else ctx.lineTo (120+(p2*400)/(enemySizeGraph.length-1), 400-(enemySizeGraph [p2]*200/max));
+		}
+		ctx.stroke();
+		ctx.strokeStyle = 'black';
+		for (p=0; p<sizeGraph.length; p++) {
+			if (p == 1) {
+				ctx.beginPath ();
+				ctx.moveTo (120, 400);
+				ctx.lineTo (120+(p*400)/(sizeGraph.length-1), 400-(sizeGraph [p]*200/max));
+			}
+			else ctx.lineTo (120+(p*400)/(sizeGraph.length-1), 400-(sizeGraph [p]*200/max));
+		}
+		ctx.stroke();
+		onkeydown = function (key) {if (key.keyCode == 32) stage = 1;}
+	}
+	if (stage < 10 && stage > 2) {
+		//ENEMY FACE
+		if (enemyFace == 0) ctx.drawImage (happy, 545, 70, 80, 80);
+		if (enemyFace == 1) ctx.drawImage (happy2, 545, 70, 80, 80);
+		if (enemyFace == 2) ctx.drawImage (sad, 545, 70, 80, 80);
+		if (enemyFace == 3) ctx.drawImage (sad2, 545, 70, 80, 80);
+		if (enemyFace == 4) ctx.drawImage (angerHappy, 545, 70, 80, 80);
+		if (enemyFace == 5) ctx.drawImage (angerHappy2, 545, 70, 80, 80);
+		if (enemyFace == 6) ctx.drawImage (angerSad, 545, 70, 80, 80);
+		if (enemyFace == 7) ctx.drawImage (angerSad2, 545, 70, 80, 80);
+	}
+	//NICKNAMES
+	if (stage == 5) {
+		ctx.font = "20px Arial";
+		ctx.fillText (nickname, 60, 30);
+		ctx.fillText (enemyNickname, 580, 30);
+	}
+	//RESET MOUSE
+	if (mouseDown == 2) mouseDown = 1;
+}
+setInterval (update, 1);
+		</script>
+	</body>
+</html>

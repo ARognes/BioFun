@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+	<header>
+		<h2>Castle Plant</h2>
+	</header>
+	<body>
+		<canvas id="canvas1" width="640" height="480" style="border:1px solid black">
+		Your browser does not support the HTML5 canvas tag
+		</canvas>
+		<script>
+
+	//Images
+var img0 = document.createElement("img");
+img0.src = "img0.png";
+var img1 = document.createElement("img");
+img1.src = "img1.png";
+var img2 = document.createElement("img");
+img2.src = "img2.png";
+var img3 = document.createElement("img");
+img3.src = "img3.png";
+	
+var c = document.getElementById("canvas1");
+var ctx = c.getContext("2d");
+var size = 20;
+var mouseX = 0;
+var mouseY = 0;
+var tile = [];
+var p1Spots = 0;
+var points = 0;
+
+function updateTiles () {
+	var canvasSquare = canvas1.height/size;
+	var push = [canvas1.width/2-canvas1.height/2, 0];
+	var tileNum = 1;
+	var selected = -1;
+	var safeTiles = [];
+	for (var x = 0; x < size; x++) {
+		for (var y = 0; y < size; y++) {
+			
+			//Create Tiles
+			tileNum++;
+			if (tile.length <= tileNum) tile.push (1);
+			
+			//Mouse Selection
+			if (tile.length > tileNum) {
+				if (mouseX < x*canvasSquare+canvasSquare+push [0] && mouseX > x*canvasSquare+push [0] && mouseY < y*canvasSquare+canvasSquare+push [1] && mouseY > y*canvasSquare+push [1]) {
+					ctx.drawImage (img3, x*canvasSquare+push [0], y*canvasSquare+push [1], canvasSquare, canvasSquare);
+					selected = tileNum;
+				}
+				document.onmousedown = function (mouse) {
+					if (selected >= 0 && points > 0) {
+						if (tile [selected] > 0 && tile [selected] < 4) {
+							points --;
+							tile [selected]++;
+							if (p1Spots <= 0) tile [selected]+= 2;
+							p1Spots++
+						}
+						else if (tile [selected] < -1) {
+							//TileCheck
+							
+						}
+					}
+				}
+				
+				//Check Branches
+				document.onmouseup = function (mouse) {
+					if (tile [tileNum] > 3) {
+						safeTiles.push (tileNum);
+						//Left Right Up Down
+						if (tile [tileNum-1] > 1) safeTiles.push (tileNum-1);
+						if (tile [tileNum+1] > 1) safeTiles.push (tileNum+1);
+						if (tile [tileNum-size] > 1) safeTiles.push (tileNum-size);
+						if (tile [tileNum+size] > 1) safeTiles.push (tileNum+size);
+						//UpLeft Clockwise
+						if (tile [tileNum-size-1] > 2) safeTiles.push (tileNum-size-1);
+						if (tile [tileNum-size+1] > 2) safeTiles.push (tileNum-size+1);
+						if (tile [tileNum+size+1] > 2) safeTiles.push (tileNum+size+1);
+						if (tile [tileNum+size-1] > 2) safeTiles.push (tileNum+size-1);
+					}
+					else if (tile [tileNum] == 2) {
+						if (safeTiles.indexOf (tileNum) != -1) {
+							if (tile [tileNum-1] > 1) safeTiles.push (tileNum-1);
+							if (tile [tileNum+1] > 1) safeTiles.push (tileNum+1);
+							if (tile [tileNum-size] > 1) safeTiles.push (tileNum-size);
+							if (tile [tileNum+size] > 1) safeTiles.push (tileNum+size);
+							//console.log ("ASDF");
+						}
+					}
+				}
+				//}
+				//Check Tiles
+				if (p1Spots > 0) {
+					if (tile [tileNum] == 0 || tile [tileNum] == 1) {
+						var sides = 0;
+						//Left Right Up Down
+						if (tile [tileNum-1] > 1) sides++;
+						if (tile [tileNum+1] > 1) sides++;
+						if (tile [tileNum-size] > 1) sides++;
+						if (tile [tileNum+size] > 1) sides++;
+						//UpLeft Clockwise
+						if (tile [tileNum-size-1] > 2) sides++;
+						if (tile [tileNum-size+1] > 2) sides++;
+						if (tile [tileNum+size+1] > 2) sides++;
+						if (tile [tileNum+size-1] > 2) sides++;
+						if (sides > 0) tile [tileNum] = 1;
+						else tile [tileNum] = 0;
+					}
+				}
+				
+				//Render
+				if (tile [tileNum] == 0) ctx.drawImage (img0, x*canvasSquare+push [0], y*canvasSquare+push [1], canvasSquare, canvasSquare);
+				else if (tile [tileNum] == 1) ctx.drawImage (img1, x*canvasSquare+push [0], y*canvasSquare+push [1], canvasSquare, canvasSquare);
+				else if (tile [tileNum] == 2) ctx.drawImage (img2, x*canvasSquare+push [0], y*canvasSquare+push [1], canvasSquare, canvasSquare);
+				else if (tile [tileNum] == 3) ctx.drawImage (img3, x*canvasSquare+push [0], y*canvasSquare+push [1], canvasSquare, canvasSquare);
+			}
+		}
+	}
+	document.onmouseup = function (mouse) {
+		if (safeTiles [q] )
+		for (var q = 0; q < tile.length; q++) {
+			
+		}
+	}
+}
+
+function update () {
+	canvas1.width = 640;
+	canvas1.height = 480;
+	updateTiles ();
+	ctx.font = "40px Arial";
+	ctx.textAlign = "center";
+	ctx.fillText (points, canvas1.width/2, 40);
+}
+
+function updatePoints () {
+	points++;
+}
+
+
+document.onmousemove = function (mouse) {
+	mouseX = mouse.clientX-canvas1.offsetLeft+window.pageXOffset;
+	mouseY = mouse.clientY-canvas1.offsetTop+window.pageYOffset;
+}
+
+setInterval (update, 1);
+setInterval (updatePoints, 1000);
+
+		</script>
+	</body>
+</html>
