@@ -430,8 +430,7 @@ function update () {
 }
 
 setInterval (update, 1);
-http.listen (8080, '192.168.1.116', function () {
-//http.listen ('3000', function () {
+http.listen ('3000', function () {
 	console.log('listening on "8080"');
 });
 http.listen

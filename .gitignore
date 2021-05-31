@@ -2,6 +2,5 @@
 *.mp4
 *.mov
 
-# Remove some random files
-First Graph Alpha 1.0.9.PNG
-Changelog.txt
+# No windows extras
+Thumbs.db

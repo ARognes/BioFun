@@ -1,0 +1,53 @@
+html, body {
+  margin: 0;
+  border: 0;
+  font: 18px/1.4 'Inconsolata';
+  overflow: hidden;
+  position: relative;
+}
+
+#canvas {
+  display: block;
+  top: 0;
+  background-color: #0a0;
+}
+
+.menu {
+  position: absolute;
+  left: 5vw;
+  top: 5vh;
+  width: 90vw;
+  height: 90vh;
+  text-align: center;
+}
+
+.menu h1 {
+  font-size: 80px;
+}
+
+.menu button, .menu input {
+  font-size: 40px;
+  border-radius: 4px;
+}
+
+.menu input {
+  width: 90%;
+}
+
+#ready-menu {
+  pointer-events: none;
+}
+
+#ready-menu button {
+  pointer-events: all;
+  position: absolute;
+  left: calc(50% - 80px);
+  top: calc(50% - 30px);
+  width: 160px;
+  height: 60px;
+}
+
+#playing-menu {
+  pointer-events: none;
+}
+/*# sourceMappingURL=style.css.map */
