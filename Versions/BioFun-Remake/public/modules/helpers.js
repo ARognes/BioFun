@@ -5,7 +5,7 @@ import scaleCanvas from './scale-canvas.js';
 const BACKGROUND_COLOR = '#cfc',
 			TILE_PADDING = 4;
 
-export class Grid {
+export class Game {
 
 	constructor(canvas, sprites, grid, gridWidth, team, socket) {
 		this.canvas = canvas;
@@ -15,6 +15,7 @@ export class Grid {
 		this.gridWidth = gridWidth;
 		this.setGrid(grid);
 		this.socket = socket;
+		this.tileMode = 'barrier';
 		this.selector = {state: 0, gx: 0, gy: 0};
 		this.heartIndex = Infinity;
 		console.log(this.team);
@@ -40,9 +41,9 @@ export class Grid {
 		this.grid.forEach((tile, i) => {
 			if (!tile.type) return;
 			let tileAlias = {'point': this.sprites.Point,
-				'bank': tile.team === this.team ? this.sprites.PlayerBank : this.sprites.EnemyBank,
-				'structure': tile.team === this.team ? this.sprites.PlayerStructure : this.sprites.EnemyStructure,
-				'offense': tile.team === this.team ? this.sprites.PlayerDefense : this.sprites.EnemyDefense,
+				'storage': tile.team === this.team ? this.sprites.PlayerBank : this.sprites.EnemyBank,
+				'barrier': tile.team === this.team ? this.sprites.PlayerDefense : this.sprites.EnemyDefense,
+				'offense': tile.team === this.team ? this.sprites.PlayerOffense : this.sprites.EnemyOffense,
 				'heart': tile.team === this.team ? this.sprites.PlayerHeart : this.sprites.EnemyHeart};
 	
 			let innerOffset = 9 - tile.level * 3 + TILE_PADDING,
@@ -65,7 +66,7 @@ export class Grid {
 				smy = (orient ? my : my - offset),
 				gx = Math.floor(smx / tileSize),
 				gy = Math.floor(smy / tileSize),
-				tileIndex = gx + gy * this.gridWidth;//(this.team - 1) ? gx + gy * this.gridWidth : this.grid.length - gx - gy * this.gridWidth - 1;
+				tileIndex = gx + gy * this.gridWidth;
 
 		// Selected off grid
 		if (gx >= this.gridWidth || gx < 0 || gy >= this.gridWidth || gy < 0) {
@@ -81,7 +82,8 @@ export class Grid {
 			this.grid[tileIndex].level = 1;
 			this.heartIndex = tileIndex;
 		}
-		if (state === 2) this.socket.emit('select tile', this.team === 1 ? this.grid.length - 1 - tileIndex : tileIndex);
+		console.log(this.tileMode);
+		if (state === 2) this.socket.emit('select tile', this.team === 1 ? this.grid.length - 1 - tileIndex : tileIndex, this.tileMode);
 		this.selector = {state: state, gx: gx, gy: gy};
 	}
 	

@@ -1,6 +1,6 @@
 'use-strict';
 
-import { Grid, loadSprites, fitCanvas, changeMenuState } from './modules/helpers.js';
+import { Game, loadSprites, fitCanvas, changeMenuState } from './modules/helpers.js';
 
 
 //#region setup
@@ -15,11 +15,11 @@ const SPRITE_FILE_NAMES = ['Check', 'EnemyBank', 'EnemyDefense', 'EnemyHeart',
 
 let canvas = document.getElementById('canvas'),
     ctx = canvas.getContext('2d');
-let gridObj = null, gridWidth = null, team = 0, menuState = 0;
+let gameObj = null, gridWidth = null, team = 0, menuState = 0;
 
 function animationLoop() {
-	if (!gridObj) return;
-	gridObj.draw();
+	if (!gameObj) return;
+	gameObj.draw();
 	requestAnimationFrame(animationLoop);
 };
 
@@ -37,7 +37,7 @@ socket.on('game found', (game, _team) => {
 
 	team = _team;
 	gridWidth = Math.sqrt(game.grid.length);
-	gridObj = new Grid(canvas, SPRITES, game.grid, gridWidth, team, socket);
+	gameObj = new Game(canvas, SPRITES, game.grid, gridWidth, team, socket);
 	animationLoop();
 	menuState = changeMenuState('ready-menu');
 });
@@ -49,22 +49,24 @@ socket.on('player left', reason => {
 	// Go back to main menu
 	menuState = changeMenuState('main-menu');
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
-	gridObj?.setGrid(null);
+	gameObj?.setGrid(null);
 });
 
 socket.on('ready accepted', (_grid, heartIndex) => {
-	gridObj.confirmHeart(heartIndex);
+	gameObj.confirmHeart(heartIndex);
 	if (menuState === 'playing-menu') return;
-	gridObj.setGrid(_grid);
+	gameObj.setGrid(_grid);
 	menuState = changeMenuState('waiting-menu');
 });
 
 socket.on('start game', _grid => {
 	socket.emit('start game echo');
 	console.log('Game starting!');
-	gridObj.setGrid(_grid);
+	gameObj.setGrid(_grid);
 	menuState = changeMenuState('playing-menu');
 });
+
+socket.on('grid', _grid => gameObj?.setGrid(_grid));
 
 socket.on('error', desc => {
 	console.error(desc);
@@ -72,15 +74,23 @@ socket.on('error', desc => {
 	//gridObj?.setGrid(null);
 });
 
-socket.on('grid', _grid => gridObj?.setGrid(_grid));
 
 //#endregion socket.io
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 //#region controls
 
-canvas.addEventListener('mousedown', (event) => event.button === 0 ? gridObj?.select(event.clientX, event.clientY, 2): null);
-canvas.addEventListener('mousemove', (event) => gridObj?.select(event.clientX, event.clientY, 1));
-canvas.addEventListener('touchstart', (event) => gridObj?.select(event.changedTouches[0].clientX, event.changedTouches[0].clientY, 2));
+canvas.addEventListener('mousedown', (event) => event.button === 0 ? gameObj?.select(event.clientX, event.clientY, 2): null);
+canvas.addEventListener('mousemove', (event) => gameObj?.select(event.clientX, event.clientY, 1));
+canvas.addEventListener('touchstart', (event) => gameObj?.select(event.changedTouches[0].clientX, event.changedTouches[0].clientY, 2));
+document.addEventListener('keydown', (event) => {
+	let key = event.keyCode;
+	
+	if (!gameObj) return;
+	if (key === 65) gameObj.tileMode = 'barrier';
+	else if (key === 82) gameObj.tileMode = 'storage';
+	else if (key === 83) gameObj.tileMode = 'offense';
+	else if (key === 84) gameObj.tileMode = 'break';
+});
 
 //#endregion controls
 /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -104,7 +114,7 @@ document.getElementById('find-game-btn').onclick = () => {
 }
 
 document.getElementById('ready-btn').onclick = () => {
-	socket.emit('ready', gridObj.team === 1 ? gridObj.grid.length - 1 - gridObj.heartIndex : gridObj.heartIndex);
+	socket.emit('ready', gameObj.team === 1 ? gameObj.grid.length - 1 - gameObj.heartIndex : gameObj.heartIndex);
 }
 
 //#endregion html tags

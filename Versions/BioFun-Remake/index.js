@@ -1,12 +1,12 @@
 const express = require('express');
 const app = express();
 const path = require('path');
-const { setUncaughtExceptionCaptureCallback } = require('process');
 const server = require('http').createServer(app);
 const io = require('socket.io')(server);
 const port = 3000;
 const SimplexNoise = require('simplex-noise'),
     simplex = new SimplexNoise(Math.random);
+const DEBUG = true;
 
 server.listen(port, () => {
   console.log('Server listening at port %d', port);
@@ -24,7 +24,6 @@ io.on('connection', (socket) => {
   let state = 'unnamed';
   let team = 0;
   let gameIndex = -1;
-	let heartIndex = null;
 
   // Enter nickname
 	socket.on ('new user', (data) => {
@@ -47,7 +46,7 @@ io.on('connection', (socket) => {
     if (openGames.length <= 0) {
       let roomId = Math.random();
       let newGame = {'id': roomId,
-                    'player1': {'id': socket.id, 'nickname': socket.nickname},
+                    'player1': {'id': socket.id, 'nickname': socket.nickname, 'points': 20},
                     'player2': null,
                     'state' : 'unfilled'};
       openGames.unshift(newGame);
@@ -56,7 +55,7 @@ io.on('connection', (socket) => {
     }
     else {	// Find openGame to close
       let foundGame = openGames.pop();
-      foundGame.player2 = {'id': socket.id, 'nickname': socket.nickname};
+      foundGame.player2 = {'id': socket.id, 'nickname': socket.nickname, 'points': 20};
       foundGame.state = 'full';
 
 			// Generate grid
@@ -107,12 +106,12 @@ io.on('connection', (socket) => {
 
   socket.on('ready', (heartIndex) => {
 		if (state !== 'ready') return logError('Incorrect State: tried to ready up');
-		
 		let game = closedGames[gameIndex];
 		if (game['player' + team].ready) return;	// Player already ready, don't call again
-		if (!heartIndex || heartIndex < 0 || heartIndex >= game.grid.length || game.grid[heartIndex].type !== null ||
-				(team === 1 && heartIndex >= game.grid.length / 4) || (team === 2 && heartIndex < game.grid.length * 3 / 4) ) 
-			return logError('Invalid heartIndex chosen: ' + heartIndex);
+		if (!heartIndex || heartIndex < 0 || heartIndex >= game.grid.length) return logError('Invalid heartIndex chosen: ' + heartIndex);
+		if (game.grid[heartIndex].type !== null) return logError('HeartIndex not free: ' + game.grid[heartIndex].type);
+		if ((team === 1 && heartIndex >= game.grid.length / 4) || (team === 2 && heartIndex < game.grid.length * 3 / 4)) return logError('HeartIndex on wrong team side: ' + heartIndex);
+			
 
 
 		// Place heart
@@ -168,7 +167,7 @@ io.on('connection', (socket) => {
 	});
 
 	socket.on('select tile', (tileIndex, selectMode) => {
-		if ((state !== 'playing' && state !== 'ready') || !team) return logError('Incorrect State: tried to select tile');
+		if (state !== 'playing' || !team) return logError('Incorrect State: tried to select tile');
 
 		// Destructure game and selected tile properties
 		let game = closedGames[gameIndex],
@@ -177,17 +176,6 @@ io.on('connection', (socket) => {
 				tile = grid[tileIndex];
 
 		if (!tile) return logError('Index out of bounds: tried to select tile index: ' + tileIndex);
-
-		// Player is selecting starting heart tile from their quarter of the board
-		/*if (state === 'ready' && !grid[tileIndex].type) {
-			if ((team === 1 && tileIndex < grid.length / 4) ||
-				 (team === 2 && tileIndex >= 3 * grid.length / 4)) {
-				heartIndex = tileIndex;
-				let privateGrid = grid;
-				privateGrid[tileIndex] = {'team': team, 'level': 1, 'type': 'heart'};
-				socket.emit('grid', privateGrid);
-			}
-		}*/
 
 		// Don't allow tile.level++ in wrong selectMode
 		if (tile.type !== null && selectMode !== 'break' && selectMode != tile.type) return;
@@ -203,16 +191,17 @@ io.on('connection', (socket) => {
 					tile.type = selectMode;
 					tile.team = team;
 				}
+				break;
 		}
-
 		closedGames[gameIndex].grid[tileIndex] = tile;
 		closedGames[gameIndex]['player' + team].points = points;
 
 		// Considering sending only changed tiles over socket.io
-		socket.to(game.id).emit('grid', closedGames[gameIndex].grid);	
+		io.in(game.id).emit('grid', closedGames[gameIndex].grid);	
 	});
 
 	function logError(errorString) {
+		if (!DEBUG) return;
 		socket.emit('error', 'Invalid server request');
 		console.error(errorString, '--' + state, socket.id);
 	}

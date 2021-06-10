@@ -1,3 +1,5 @@
+//'use-strict';
+
 //nicknamebtn = document.getElementById('play-btn');
 /*export function controls(canvas, IS_MOBILE) {
   canvas.addEventListener("mousedown", (event) => {
@@ -12,10 +14,10 @@
     socket.emit('select tile', tileIndex);
   }, false);
 }*/
-
+/*
 canvas.addEventListener('mousedown', (event) => event.button === 0 ? gridObj?.select(event): null);
 canvas.addEventListener('touchstart', (event) => gridObj?.select(event));
-
+*/
 /*
 if (IS_MOBILE) {
 
