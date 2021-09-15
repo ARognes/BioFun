@@ -1,8 +1,11 @@
 # BioFun
 
-    TODO Gif / Video
-
 A two player, online, turn based game that was eventually going to be themed around cells and biology related material.
+
+
+## Showcase
+[![https://www.roadtovr.com/wp-content/uploads/2015/03/youtube-logo2.jpg](https://img.youtube.com/vi/4FwkjBUxtzI/0.jpg)](https://youtu.be/4FwkjBUxtzI)
+
 
 ## Game Concept
 1. A map is created with points randomly distributed.
